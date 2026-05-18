@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SpendLens Dashboard</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'Segoe UI', sans-serif; background: #0f1117; color: #e2e8f0; }
+    
+    header { 
+      padding: 24px 40px; 
+      border-bottom: 1px solid #1e2433;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    header h1 { font-size: 22px; font-weight: 700; color: #fff; }
+    header span { font-size: 13px; color: #64748b; }
+    .dot { width: 8px; height: 8px; background: #22c55e; border-radius: 50%; animation: pulse 2s infinite; }
+    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+
+    .container { max-width: 1100px; margin: 0 auto; padding: 32px 40px; }
+
+    .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 32px; }
+    .stat-card { background: #1a1f2e; border: 1px solid #1e2433; border-radius: 12px; padding: 24px; }
+    .stat-card .label { font-size: 12px; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 8px; }
+    .stat-card .value { font-size: 32px; font-weight: 700; color: #fff; }
+    .stat-card .sub { font-size: 12px; color: #64748b; margin-top: 4px; }
+
+    .section-title { font-size: 14px; font-weight: 600; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 16px; }
+
+    .chart-card { background: #1a1f2e; border: 1px solid #1e2433; border-radius: 12px; padding: 24px; margin-bottom: 32px; }
+
+    .anomaly-card { background: #1a1f2e; border: 1px solid #1e2433; border-radius: 12px; padding: 24px; margin-bottom: 16px; }
+    .anomaly-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+    .anomaly-service { font-size: 18px; font-weight: 600; color: #fff; }
+    .badge { padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; }
+    .badge-high { background: #450a0a; color: #f87171; }
+    .badge-medium { background: #431407; color: #fb923c; }
+
+    .anomaly-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 16px; }
+    .metric { }
+    .metric .metric-label { font-size: 11px; color: #64748b; margin-bottom: 4px; }
+    .metric .metric-value { font-size: 20px; font-weight: 600; color: #fff; }
+    .metric .metric-value.red { color: #f87171; }
+    .metric .metric-value.green { color: #86efac; }
+
+    .ai-section { background: #0f1117; border-radius: 8px; padding: 16px; border-left: 3px solid #6366f1; }
+    .ai-label { font-size: 11px; color: #6366f1; font-weight: 600; margin-bottom: 8px; }
+    .ai-text { font-size: 13px; color: #94a3b8; line-height: 1.6; white-space: pre-wrap; }
+
+    .loading { text-align: center; padding: 60px; color: #64748b; }
+    .date-range { font-size: 12px; color: #64748b; margin-top: 8px; }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="dot"></div>
+  <h1>SpendLens</h1>
+  <span>AWS Cost Anomaly Monitor</span>
+</header>
+
+<div class="container">
+  <div class="stats">
+    <div class="stat-card">
+      <div class="label">Total Anomalies</div>
+      <div class="value" id="total-count">—</div>
+      <div class="sub">detected this month</div>
+    </div>
+    <div class="stat-card">
+      <div class="label">Total Extra Spend</div>
+      <div class="value" id="total-impact">—</div>
+      <div class="sub">above expected</div>
+    </div>
+    <div class="stat-card">
+      <div class="label">Highest Severity</div>
+      <div class="value" id="max-severity">—</div>
+      <div class="sub">out of 1.0</div>
+    </div>
+  </div>
+
+  <div class="chart-card">
+    <div class="section-title">Cost Impact by Service</div>
+    <canvas id="costChart" height="80"></canvas>
+  </div>
+
+  <div class="section-title">Anomaly Details</div>
+  <div id="anomalies-list">
+    <div class="loading">Loading anomalies...</div>
+  </div>
+</div>
+
+<script>
+  const API = 'http://localhost:5000';
+
+  async function loadDashboard() {
+    const res = await fetch(`${API}/anomalies`);
+    const data = await res.json();
+    const anomalies = data.anomalies;
+
+    // stats
+    document.getElementById('total-count').textContent = anomalies.length;
+    const totalImpact = anomalies.reduce((sum, a) => sum + parseFloat(a.total_impact), 0);
+    document.getElementById('total-impact').textContent = `$${totalImpact.toFixed(2)}`;
+    const maxSeverity = Math.max(...anomalies.map(a => parseFloat(a.severity_score)));
+    document.getElementById('max-severity').textContent = maxSeverity.toFixed(2);
+
+    // chart
+    const ctx = document.getElementById('costChart').getContext('2d');
+    new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels: anomalies.map(a => a.service),
+        datasets: [{
+          label: 'Extra Spend ($)',
+          data: anomalies.map(a => parseFloat(a.total_impact)),
+          backgroundColor: '#6366f1',
+          borderRadius: 6
+        }, {
+          label: 'Expected Spend ($)',
+          data: anomalies.map(a => parseFloat(a.expected_spend)),
+          backgroundColor: '#1e2433',
+          borderRadius: 6
+        }]
+      },
+      options: {
+        plugins: { legend: { labels: { color: '#94a3b8' } } },
+        scales: {
+          x: { ticks: { color: '#64748b' }, grid: { color: '#1e2433' } },
+          y: { ticks: { color: '#64748b' }, grid: { color: '#1e2433' } }
+        }
+      }
+    });
+
+    // anomaly cards
+    const list = document.getElementById('anomalies-list');
+    list.innerHTML = anomalies.map(a => {
+      const severity = parseFloat(a.severity_score);
+      const badge = severity >= 0.8 
+        ? '<span class="badge badge-high">High Severity</span>'
+        : '<span class="badge badge-medium">Medium Severity</span>';
+
+      return `
+        <div class="anomaly-card">
+          <div class="anomaly-header">
+            <div class="anomaly-service">${a.service}</div>
+            ${badge}
+          </div>
+          <div class="anomaly-grid">
+            <div class="metric">
+              <div class="metric-label">Actual Spend</div>
+              <div class="metric-value red">$${parseFloat(a.actual_spend).toFixed(2)}</div>
+            </div>
+            <div class="metric">
+              <div class="metric-label">Expected Spend</div>
+              <div class="metric-value green">$${parseFloat(a.expected_spend).toFixed(2)}</div>
+            </div>
+            <div class="metric">
+              <div class="metric-label">Extra Cost</div>
+              <div class="metric-value red">$${parseFloat(a.total_impact).toFixed(2)}</div>
+            </div>
+          </div>
+          <div class="date-range">📅 ${a.start_date} → ${a.end_date}</div>
+          <br/>
+          <div class="ai-section">
+            <div class="ai-label">⚡ AI EXPLANATION</div>
+            <div class="ai-text">${a.explanation || 'No explanation stored yet.'}</div>
+          </div>
+        </div>
+      `;
+    }).join('');
+  }
+
+  loadDashboard();
+</script>
+</body>
+</html>

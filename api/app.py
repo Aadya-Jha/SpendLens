@@ -1,7 +1,9 @@
 from flask import Flask, jsonify
+from flask_cors import CORS
 import boto3
 
 app = Flask(__name__)
+CORS(app)
 
 def get_table():
     dynamodb = boto3.resource('dynamodb', region_name='us-east-1')
