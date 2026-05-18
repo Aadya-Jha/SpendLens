@@ -7,7 +7,7 @@ def is_duplicate(table, anomaly_id):
     )
     return 'Item' in response
 
-def store_anomalies(anomaly):
+def store_anomaly(anomaly):
     dynamodb = boto3.resource('dynamodb', region_name='us-east-1')
     table = dynamodb.Table('spendlens-alerts')
 
@@ -30,15 +30,3 @@ def store_anomalies(anomaly):
     )
     print(f"Stored anomaly: {anomaly['anomaly_id']}")
     return True
-
-from fetch_anomalies import fetch_anomalies, get_mock_anomaly, parse_anomaly
-
-anomalies = fetch_anomalies()
-if not anomalies:
-    anomalies = get_mock_anomaly()
-
-parsed = [parse_anomaly(a) for a in anomalies]
-
-for p in parsed:
-    result = store_anomalies(p)
-    print(f"Stored: {result}")

@@ -1,8 +1,6 @@
 import boto3
 from dotenv import load_dotenv
 import os
-from fetch_anomalies import fetch_anomalies, get_mock_anomaly, parse_anomaly
-from explain_anomaly import explain_anomaly
 
 load_dotenv()
 
@@ -39,13 +37,3 @@ Powered by SpendLens
     )
 
     print(f"Alert sent for: {anomaly['service']}")
-
-anomalies = fetch_anomalies()
-if not anomalies:
-    anomalies = get_mock_anomaly()
-
-parsed = [parse_anomaly(a) for a in anomalies]
-
-for p in parsed:
-    explanation = explain_anomaly(p)
-    result = send_alert(p, explanation)

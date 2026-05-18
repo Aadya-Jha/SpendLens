@@ -40,16 +40,3 @@ RECOMMENDATIONS:
     )
 
     return response.choices[0].message.content
-
-# test it
-from fetch_anomalies import fetch_anomalies, get_mock_anomaly, parse_anomaly
-
-anomalies = fetch_anomalies()
-if not anomalies:
-    anomalies = get_mock_anomaly()
-
-parsed = [parse_anomaly(a) for a in anomalies]
-
-for p in parsed:
-    explanation = explain_anomaly(p)
-    print(explanation)
