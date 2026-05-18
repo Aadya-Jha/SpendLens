@@ -61,14 +61,3 @@ def parse_anomaly(anomaly):
         'total_impact': anomaly['Impact']['TotalImpact'],
         'severity_score': anomaly['AnomalyScore']['MaxScore']
     }
-
-anomalies = fetch_anomalies()
-if not anomalies:
-    print("No anomalies found, using mock data")
-    anomalies = get_mock_anomaly()
-
-print(f"Working with {len(anomalies)} anomalies")
-
-parsed = [parse_anomaly(a) for a in anomalies]
-for p in parsed:
-    print(json.dumps(p, indent=2))
