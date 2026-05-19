@@ -5,3 +5,5 @@ package/
 spendlens.zip
 venv/
 *.zip
+.aws-sam/
+node_modules/
