@@ -156,6 +156,7 @@ The explanation is emailed to you via SNS and stored in DynamoDB for the dashboa
 
 ## Project Structure
 
+```text
 spendlens/
 ├── lambdas/
 │   ├── lambda_function.py      # main handler, orchestrates the pipeline
@@ -170,6 +171,7 @@ spendlens/
 ├── setup.py                    # automated deployment script
 ├── requirements.txt            # Python dependencies
 └── README.md
+```
 
 ---
 
