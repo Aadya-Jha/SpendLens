@@ -19,8 +19,8 @@ AWS's native alerts tell you *that* something spiked. SpendLens tells you *why* 
 - **AI-powered explanations** — plain English root cause analysis with fix recommendations
 - **Smart deduplication** — never alerts you about the same anomaly twice
 - **Web dashboard** — visualize anomaly history and cost impact by service
-- **One-command deploy** — entire AWS stack provisioned automatically
-- **Fully serverless** — no servers, no maintenance, costs ~₹1/day to run
+- **Infrastructure as code** — entire AWS stack defined in SAM template, deployed in one command
+- **Fully serverless** — no servers, no maintenance, costs ~₹25/month to run
 
 ---
 
@@ -32,9 +32,9 @@ AWS Lambda
 ↓
 Cost Explorer API ──→ DynamoDB (deduplication + storage)
 ↓
-Groq AI (explanation generation)
+Groq AI (Llama 3.3 70B)
 ↓
-SNS (email alert)
+SNS Email Alert
 ↓
 Flask API ──→ Dashboard
 
@@ -45,12 +45,13 @@ Flask API ──→ Dashboard
 | Layer | Technology | Why |
 |-------|-----------|-----|
 | Scheduler | AWS EventBridge | Managed cron, no servers needed |
-| Compute | AWS Lambda (Python 3.12) | Serverless, pay only per execution |
+| Compute | AWS Lambda (Python 3.11) | Serverless, pay only per execution |
 | Data Source | AWS Cost Explorer API | Native AWS anomaly detection |
 | Storage | AWS DynamoDB | Serverless NoSQL, fast key lookups |
 | AI | Groq API (Llama 3.3 70B) | Fast inference, free tier available |
 | Alerts | AWS SNS | Managed email delivery |
 | API | Flask | REST endpoints for dashboard |
+| IaC | AWS SAM | Infrastructure as code, reproducible deploys |
 
 ---
 
@@ -59,8 +60,9 @@ Flask API ──→ Dashboard
 Before you begin make sure you have:
 
 - An AWS account with billing enabled
-- AWS CLI installed and configured
-- Python 3.12 installed
+- AWS CLI installed and configured — [Install guide](https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html)
+- AWS SAM CLI installed — [Install guide](https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/install-sam-cli.html)
+- Python 3.11
 - A Groq API key — free at [console.groq.com](https://console.groq.com)
 
 ---
@@ -82,48 +84,44 @@ pip install -r requirements.txt
 
 ### Step 3 — Configure AWS CLI
 
-If you haven't already, configure your AWS credentials:
-
 ```bash
 aws configure
 ```
 
-You'll need:
+Enter your:
 - AWS Access Key ID
 - AWS Secret Access Key
-- Default region (recommended: `us-east-1`)
+- Default region: `us-east-1`
 - Default output format: `json`
 
-To verify it's working:
+Verify it works:
 ```bash
 aws sts get-caller-identity
 ```
 
-### Step 4 — Run the setup script
+### Step 4 — Build and deploy with SAM
 
 ```bash
-python setup.py
+sam build
+sam deploy --guided
 ```
 
-The script will ask for:
-- Your email address for alerts
-- AWS region (press Enter for `us-east-1`)
-- Your Groq API key
+During guided deploy you'll be asked for:
+- **Stack name** — enter `spendlens`
+- **AWS Region** — enter `us-east-1`
+- **GroqApiKey** — paste your Groq API key
+- **AlertEmail** — your email address for alerts
+- Accept all other defaults
 
-It will then automatically:
-1. Create a DynamoDB table (`spendlens-alerts`)
-2. Create an SNS topic and subscribe your email
-3. Create an IAM role with required permissions
-4. Package and deploy the Lambda function
-5. Set up the EventBridge daily schedule
+SAM will automatically create:
+- Lambda function with correct IAM permissions
+- DynamoDB table for anomaly storage
+- SNS topic subscribed to your email
+- EventBridge rule for daily scheduling
 
-**Important:** After running setup, check your email and confirm the SNS subscription. You won't receive alerts until you confirm.
+**Important:** After deploy, check your email and confirm the SNS subscription. You won't receive alerts until you confirm.
 
-### Step 5 — Confirm your email subscription
-
-AWS will send a confirmation email to the address you provided. Click **Confirm subscription** in that email.
-
-### Step 6 — Run the dashboard locally
+### Step 5 — Run the dashboard locally
 
 Start the Flask API:
 ```bash
@@ -131,26 +129,26 @@ cd api
 python app.py
 ```
 
-Open `frontend/index.html` in your browser. The dashboard will show all detected anomalies with AI explanations and cost charts.
+Open `frontend/index.html` in your browser.
 
 ---
 
 ## How It Works
 
 ### 1. Anomaly Detection
-Every day at 8AM UTC, EventBridge triggers the Lambda function. It calls the AWS Cost Explorer API to fetch any cost anomalies from the past 30 days where the extra spend exceeds $1.
+Every day at 8AM UTC, EventBridge triggers the Lambda function. It calls the AWS Cost Explorer API to fetch cost anomalies from the past 30 days where extra spend exceeds $1.
 
 ### 2. Deduplication
-Before processing, SpendLens checks DynamoDB to see if this anomaly has already been handled. If it has, it skips it — so you never get the same alert twice.
+Before processing, SpendLens checks DynamoDB using the anomaly ID. If already processed, it skips — so you never get the same alert twice.
 
 ### 3. AI Explanation
-New anomalies are sent to the Groq API with a structured prompt. The AI returns:
+New anomalies are sent to Groq API with a structured prompt. The AI returns:
 - A one-line plain English summary
-- The most likely root cause
+- Most likely root cause
 - 3 specific fix recommendations
 
-### 4. Alert
-The explanation is emailed to you via SNS and stored in DynamoDB for the dashboard.
+### 4. Alert + Storage
+The explanation is emailed via SNS and stored in DynamoDB for the dashboard to display.
 
 ---
 
@@ -163,13 +161,16 @@ spendlens/
 │   ├── fetch_anomalies.py      # Cost Explorer API + mock fallback
 │   ├── store_anomaly.py        # DynamoDB storage + deduplication
 │   ├── explain_anomaly.py      # Groq AI explanation generation
-│   └── send_alert.py           # SNS email delivery
+│   ├── send_alert.py           # SNS email delivery
+│   └── requirements.txt        # Lambda dependencies
 ├── api/
 │   └── app.py                  # Flask REST API
 ├── frontend/
 │   └── index.html              # web dashboard
-├── setup.py                    # automated deployment script
-├── requirements.txt            # Python dependencies
+├── template.yaml               # AWS SAM infrastructure definition
+├── samconfig.toml              # SAM deployment configuration
+├── setup.py                    # alternative manual deployment script
+├── requirements.txt            # local development dependencies
 └── README.md
 ```
 
@@ -213,10 +214,10 @@ The Flask API runs locally on port 5000.
 
 | Service | Monthly Cost |
 |---------|-------------|
-| AWS Lambda | Free (1M requests/month free tier) |
-| AWS DynamoDB | Free (25GB free tier) |
+| AWS Lambda | Free tier (1M requests/month) |
+| AWS DynamoDB | Free tier (25GB storage) |
 | AWS EventBridge | Free (unlimited scheduled rules) |
-| AWS SNS | Free (1000 emails/month free tier) |
+| AWS SNS | Free tier (1000 emails/month) |
 | AWS Cost Explorer | ~$0.30/month |
 | Groq API | Free tier |
 | **Total** | **~₹25/month** |
@@ -226,29 +227,34 @@ The Flask API runs locally on port 5000.
 ## Troubleshooting
 
 **Not receiving email alerts?**
-- Check your spam folder
-- Make sure you confirmed the SNS subscription email
+- Check spam folder
+- Confirm the SNS subscription email AWS sent after deploy
 - Check CloudWatch logs: `Logs → /aws/lambda/spendlens-daily`
 
 **Lambda timing out?**
 - Go to Lambda → Configuration → General → increase timeout to 30 seconds
 
 **Access Denied errors?**
-- Check the Lambda execution role has `ce:GetAnomalies`, `sns:Publish`, and `AmazonDynamoDBFullAccess` permissions
+- IAM permissions are managed by SAM — run `sam deploy` again to reset them
 
-**No anomalies showing?**
-- Your AWS account may be too new for Cost Explorer to detect patterns
-- Cost Explorer needs ~2 weeks of billing history to detect anomalies
-- The system falls back to mock data automatically during this period
+**No anomalies showing on dashboard?**
+- New AWS accounts need 2+ weeks of billing history for Cost Explorer to detect patterns
+- SpendLens falls back to mock data automatically during this period
+
+**Want to redeploy after changes?**
+```bash
+sam build
+sam deploy
+```
 
 ---
 
 ## What's Next
 
 - [ ] Slack notifications alongside email
-- [ ] Multi-account support via IAM cross-account roles  
+- [ ] Multi-account support via IAM cross-account roles
 - [ ] Cost forecasting using historical billing data
-- [ ] Terraform module for infrastructure as code deployment
+- [ ] Terraform module as alternative IaC option
 - [ ] Docker support for local development
 
 ---
@@ -261,4 +267,4 @@ Built by Aadya
 
 ## License
 
-MIT License — free to use, modify, and deploy to your own AWS account.
+MIT — free to use, modify, and deploy to your own AWS account.
