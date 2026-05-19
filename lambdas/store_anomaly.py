@@ -7,7 +7,7 @@ def is_duplicate(table, anomaly_id):
     )
     return 'Item' in response
 
-def store_anomaly(anomaly):
+def store_anomaly(anomaly, explanation=""):
     dynamodb = boto3.resource('dynamodb', region_name='us-east-1')
     table = dynamodb.Table('spendlens-alerts')
 
@@ -25,8 +25,14 @@ def store_anomaly(anomaly):
             'actual_spend': str(anomaly['actual_spend']),
             'total_impact': str(anomaly['total_impact']),
             'severity_score': str(anomaly['severity_score']),
+            'explanation': explanation,
             'processed_at': datetime.utcnow().isoformat()
         }
     )
     print(f"Stored anomaly: {anomaly['anomaly_id']}")
     return True
+
+def is_already_processed(anomaly_id):
+    dynamodb = boto3.resource('dynamodb', region_name='us-east-1')
+    table = dynamodb.Table('spendlens-alerts')
+    return is_duplicate(table, anomaly_id)

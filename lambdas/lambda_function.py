@@ -3,7 +3,7 @@ import boto3
 import os
 from dotenv import load_dotenv
 from fetch_anomalies import fetch_anomalies, get_mock_anomaly, parse_anomaly
-from store_anomaly import store_anomaly
+from store_anomaly import store_anomaly, is_already_processed
 from explain_anomaly import explain_anomaly
 from send_alert import send_alert
 
@@ -24,16 +24,14 @@ def lambda_handler(event, context):
     skipped = 0
     
     for anomaly in parsed:
-        stored = store_anomaly(anomaly)
-        
-        if not stored:
+        if is_already_processed(anomaly['anomaly_id']):
+            print(f"Duplicate, skipping: {anomaly['anomaly_id']}")
             skipped += 1
             continue
-        
+    
         explanation = explain_anomaly(anomaly)
-        
+        store_anomaly(anomaly, explanation)
         send_alert(anomaly, explanation)
-        
         processed += 1
     
     print(f"Done — processed: {processed}, skipped: {skipped}")
