@@ -3,178 +3,376 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>SpendLens Dashboard</title>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <title>SpendLens — AWS Cost Anomaly Explainer</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css">
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { font-family: 'Segoe UI', sans-serif; background: #0f1117; color: #e2e8f0; }
-    
-    header { 
-      padding: 24px 40px; 
-      border-bottom: 1px solid #1e2433;
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #fff; color: #111; }
+
+    nav {
       display: flex;
       align-items: center;
-      gap: 12px;
+      justify-content: space-between;
+      padding: 1rem 2rem;
+      border-bottom: 1px solid #f0f0f0;
     }
-    header h1 { font-size: 22px; font-weight: 700; color: #fff; }
-    header span { font-size: 13px; color: #64748b; }
-    .dot { width: 8px; height: 8px; background: #22c55e; border-radius: 50%; animation: pulse 2s infinite; }
-    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+    .nav-logo {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 16px;
+      font-weight: 500;
+      color: #111;
+      text-decoration: none;
+    }
+    .nav-links {
+      display: flex;
+      align-items: center;
+      gap: 1.5rem;
+    }
+    .nav-links a {
+      font-size: 14px;
+      color: #666;
+      text-decoration: none;
+    }
+    .nav-links a:hover { color: #111; }
 
-    .container { max-width: 1100px; margin: 0 auto; padding: 32px 40px; }
+    .hero {
+      max-width: 680px;
+      margin: 0 auto;
+      padding: 5rem 2rem 3rem;
+      text-align: center;
+    }
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: #f5f5f5;
+      border: 1px solid #e8e8e8;
+      border-radius: 6px;
+      padding: 4px 12px;
+      font-size: 12px;
+      color: #666;
+      margin-bottom: 1.5rem;
+    }
+    .hero h1 {
+      font-size: 38px;
+      font-weight: 500;
+      line-height: 1.2;
+      color: #111;
+      margin-bottom: 1rem;
+    }
+    .hero p {
+      font-size: 16px;
+      color: #555;
+      line-height: 1.7;
+      margin-bottom: 2rem;
+      max-width: 480px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+    .cta-group {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .btn-primary {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: #111;
+      color: #fff;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 500;
+      text-decoration: none;
+      cursor: pointer;
+    }
+    .btn-secondary {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: transparent;
+      color: #111;
+      border: 1px solid #ddd;
+      padding: 10px 20px;
+      border-radius: 8px;
+      font-size: 14px;
+      text-decoration: none;
+    }
+    .btn-primary:hover { background: #333; }
+    .btn-secondary:hover { border-color: #aaa; }
 
-    .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 32px; }
-    .stat-card { background: #1a1f2e; border: 1px solid #1e2433; border-radius: 12px; padding: 24px; }
-    .stat-card .label { font-size: 12px; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 8px; }
-    .stat-card .value { font-size: 32px; font-weight: 700; color: #fff; }
-    .stat-card .sub { font-size: 12px; color: #64748b; margin-top: 4px; }
+    .code-block {
+      max-width: 680px;
+      margin: 0 auto;
+      padding: 0 2rem 3rem;
+    }
+    .code-inner {
+      background: #f8f8f8;
+      border: 1px solid #ebebeb;
+      border-radius: 10px;
+      padding: 1.25rem 1.5rem;
+      font-family: 'SF Mono', 'Fira Code', monospace;
+      font-size: 13px;
+      color: #444;
+    }
+    .code-inner .comment {
+      color: #aaa;
+      font-size: 12px;
+      margin-bottom: 8px;
+      display: block;
+    }
+    .code-inner div { margin-bottom: 4px; }
+    .code-inner .prompt { color: #bbb; margin-right: 6px; }
+    .code-inner .success { color: #aaa; font-size: 12px; margin-top: 10px; display: block; }
 
-    .section-title { font-size: 14px; font-weight: 600; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 16px; }
+    .section {
+      max-width: 680px;
+      margin: 0 auto;
+      padding: 1rem 2rem 3rem;
+    }
+    .section-label {
+      font-size: 12px;
+      font-weight: 500;
+      color: #aaa;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 1.5rem;
+    }
 
-    .chart-card { background: #1a1f2e; border: 1px solid #1e2433; border-radius: 12px; padding: 24px; margin-bottom: 32px; }
+    .steps {
+      border: 1px solid #ebebeb;
+      border-radius: 10px;
+      overflow: hidden;
+    }
+    .step {
+      background: #fff;
+      padding: 1.25rem;
+      display: flex;
+      gap: 1rem;
+      align-items: flex-start;
+      border-bottom: 1px solid #f0f0f0;
+    }
+    .step:last-child { border-bottom: none; }
+    .step-num {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      background: #f5f5f5;
+      border: 1px solid #e8e8e8;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      font-size: 13px;
+      font-weight: 500;
+      color: #666;
+    }
+    .step-title {
+      font-size: 14px;
+      font-weight: 500;
+      color: #111;
+      margin-bottom: 4px;
+    }
+    .step-desc {
+      font-size: 13px;
+      color: #666;
+      line-height: 1.6;
+    }
 
-    .anomaly-card { background: #1a1f2e; border: 1px solid #1e2433; border-radius: 12px; padding: 24px; margin-bottom: 16px; }
-    .anomaly-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
-    .anomaly-service { font-size: 18px; font-weight: 600; color: #fff; }
-    .badge { padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; }
-    .badge-high { background: #450a0a; color: #f87171; }
-    .badge-medium { background: #431407; color: #fb923c; }
+    .stack-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 8px;
+    }
+    .stack-card {
+      background: #fff;
+      border: 1px solid #ebebeb;
+      border-radius: 8px;
+      padding: 1rem;
+    }
+    .stack-card i {
+      font-size: 18px;
+      color: #888;
+      margin-bottom: 8px;
+      display: block;
+    }
+    .stack-name {
+      font-size: 13px;
+      font-weight: 500;
+      color: #111;
+      margin-bottom: 2px;
+    }
+    .stack-desc {
+      font-size: 12px;
+      color: #aaa;
+    }
 
-    .anomaly-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 16px; }
-    .metric { }
-    .metric .metric-label { font-size: 11px; color: #64748b; margin-bottom: 4px; }
-    .metric .metric-value { font-size: 20px; font-weight: 600; color: #fff; }
-    .metric .metric-value.red { color: #f87171; }
-    .metric .metric-value.green { color: #86efac; }
+    .dashboard-preview {
+      max-width: 680px;
+      margin: 0 auto;
+      padding: 0 2rem 3rem;
+    }
+    .dashboard-preview img {
+      width: 100%;
+      border-radius: 10px;
+      border: 1px solid #ebebeb;
+    }
 
-    .ai-section { background: #0f1117; border-radius: 8px; padding: 16px; border-left: 3px solid #6366f1; }
-    .ai-label { font-size: 11px; color: #6366f1; font-weight: 600; margin-bottom: 8px; }
-    .ai-text { font-size: 13px; color: #94a3b8; line-height: 1.6; white-space: pre-wrap; }
-
-    .loading { text-align: center; padding: 60px; color: #64748b; }
-    .date-range { font-size: 12px; color: #64748b; margin-top: 8px; }
+    footer {
+      border-top: 1px solid #f0f0f0;
+      padding: 1.5rem 2rem;
+      max-width: 680px;
+      margin: 0 auto;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    footer span { font-size: 13px; color: #aaa; }
+    .footer-links { display: flex; gap: 1rem; }
+    .footer-links a {
+      font-size: 13px;
+      color: #aaa;
+      text-decoration: none;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .footer-links a:hover { color: #111; }
   </style>
 </head>
 <body>
 
-<header>
-  <div class="dot"></div>
-  <h1>SpendLens</h1>
-  <span>AWS Cost Anomaly Monitor</span>
-</header>
-
-<div class="container">
-  <div class="stats">
-    <div class="stat-card">
-      <div class="label">Total Anomalies</div>
-      <div class="value" id="total-count">—</div>
-      <div class="sub">detected this month</div>
-    </div>
-    <div class="stat-card">
-      <div class="label">Total Extra Spend</div>
-      <div class="value" id="total-impact">—</div>
-      <div class="sub">above expected</div>
-    </div>
-    <div class="stat-card">
-      <div class="label">Highest Severity</div>
-      <div class="value" id="max-severity">—</div>
-      <div class="sub">out of 1.0</div>
-    </div>
+<nav>
+  <a class="nav-logo" href="#">
+    <i class="ti ti-zoom-money"></i>
+    SpendLens
+  </a>
+  <div class="nav-links">
+    <a href="#how">How it works</a>
+    <a href="#stack">Stack</a>
+    <a href="https://github.com/Aadya-Jha/spendlens" target="_blank">GitHub</a>
   </div>
+</nav>
 
-  <div class="chart-card">
-    <div class="section-title">Cost Impact by Service</div>
-    <canvas id="costChart" height="80"></canvas>
+<section class="hero">
+  <div class="badge">
+    <i class="ti ti-cpu" style="font-size:14px"></i>
+    Serverless · AWS SAM · Groq AI
   </div>
+  <h1>Know why your AWS bill spiked</h1>
+  <p>SpendLens monitors your AWS account daily, detects cost anomalies, and emails you a plain-English explanation with fix recommendations — powered by AI.</p>
+  <div class="cta-group">
+    <a class="btn-primary" href="https://github.com/Aadya-Jha/spendlens" target="_blank">
+      <i class="ti ti-brand-github"></i>
+      Deploy to your AWS
+    </a>
+    <a class="btn-secondary" href="dashboard.html">
+      View dashboard
+      <i class="ti ti-arrow-right"></i>
+    </a>
+  </div>
+</section>
 
-  <div class="section-title">Anomaly Details</div>
-  <div id="anomalies-list">
-    <div class="loading">Loading anomalies...</div>
+<div class="code-block">
+  <div class="code-inner">
+    <span class="comment">deploy in 3 commands</span>
+    <div><span class="prompt">$</span> git clone github.com/Aadya-Jha/spendlens</div>
+    <div><span class="prompt">$</span> sam build</div>
+    <div><span class="prompt">$</span> sam deploy --guided</div>
+    <span class="success">✓ Lambda, DynamoDB, SNS, EventBridge — all provisioned automatically</span>
   </div>
 </div>
 
-<script>
-  const API = 'http://localhost:5000';
+<section class="dashboard-preview">
+  <p class="section-label">Dashboard</p>
+  <img src="dashboard-img1.png" alt="SpendLens dashboard showing cost anomalies and AI explanations" />
+</section>
 
-  async function loadDashboard() {
-    const res = await fetch(`${API}/anomalies`);
-    const data = await res.json();
-    const anomalies = data.anomalies;
+<section class="section" id="how">
+  <p class="section-label">How it works</p>
+  <div class="steps">
+    <div class="step">
+      <div class="step-num">1</div>
+      <div>
+        <div class="step-title">Detect</div>
+        <div class="step-desc">EventBridge triggers Lambda daily at 8AM UTC. It calls AWS Cost Explorer to fetch anomalies where spending exceeds expected by more than $1.</div>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">2</div>
+      <div>
+        <div class="step-title">Deduplicate</div>
+        <div class="step-desc">Each anomaly is checked against DynamoDB using its unique ID. Already processed anomalies are skipped — you never get the same alert twice.</div>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">3</div>
+      <div>
+        <div class="step-title">Explain</div>
+        <div class="step-desc">The anomaly is sent to Groq AI (Llama 3.3 70B). It returns a plain-English summary, most likely root cause, and 3 specific fix recommendations.</div>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">4</div>
+      <div>
+        <div class="step-title">Alert</div>
+        <div class="step-desc">The explanation is emailed via SNS and stored in DynamoDB. Open the dashboard anytime to view anomaly history, cost charts, and AI explanations.</div>
+      </div>
+    </div>
+  </div>
+</section>
 
-    // stats
-    document.getElementById('total-count').textContent = anomalies.length;
-    const totalImpact = anomalies.reduce((sum, a) => sum + parseFloat(a.total_impact), 0);
-    document.getElementById('total-impact').textContent = `$${totalImpact.toFixed(2)}`;
-    const maxSeverity = Math.max(...anomalies.map(a => parseFloat(a.severity_score)));
-    document.getElementById('max-severity').textContent = maxSeverity.toFixed(2);
+<section class="section" id="stack">
+  <p class="section-label">Tech stack</p>
+  <div class="stack-grid">
+    <div class="stack-card">
+      <i class="ti ti-bolt"></i>
+      <div class="stack-name">AWS Lambda</div>
+      <div class="stack-desc">Serverless compute</div>
+    </div>
+    <div class="stack-card">
+      <i class="ti ti-calendar-event"></i>
+      <div class="stack-name">EventBridge</div>
+      <div class="stack-desc">Daily scheduler</div>
+    </div>
+    <div class="stack-card">
+      <i class="ti ti-database"></i>
+      <div class="stack-name">DynamoDB</div>
+      <div class="stack-desc">Anomaly storage</div>
+    </div>
+    <div class="stack-card">
+      <i class="ti ti-mail"></i>
+      <div class="stack-name">AWS SNS</div>
+      <div class="stack-desc">Email alerts</div>
+    </div>
+    <div class="stack-card">
+      <i class="ti ti-brain"></i>
+      <div class="stack-name">Groq AI</div>
+      <div class="stack-desc">LLM explanations</div>
+    </div>
+    <div class="stack-card">
+      <i class="ti ti-code"></i>
+      <div class="stack-name">AWS SAM</div>
+      <div class="stack-desc">Infrastructure as code</div>
+    </div>
+  </div>
+</section>
 
-    // chart
-    const ctx = document.getElementById('costChart').getContext('2d');
-    new Chart(ctx, {
-      type: 'bar',
-      data: {
-        labels: anomalies.map(a => a.service),
-        datasets: [{
-          label: 'Extra Spend ($)',
-          data: anomalies.map(a => parseFloat(a.total_impact)),
-          backgroundColor: '#6366f1',
-          borderRadius: 6
-        }, {
-          label: 'Expected Spend ($)',
-          data: anomalies.map(a => parseFloat(a.expected_spend)),
-          backgroundColor: '#1e2433',
-          borderRadius: 6
-        }]
-      },
-      options: {
-        plugins: { legend: { labels: { color: '#94a3b8' } } },
-        scales: {
-          x: { ticks: { color: '#64748b' }, grid: { color: '#1e2433' } },
-          y: { ticks: { color: '#64748b' }, grid: { color: '#1e2433' } }
-        }
-      }
-    });
+<footer>
+  <span>Built by Aadya</span>
+  <div class="footer-links">
+    <a href="https://github.com/Aadya-Jha/spendlens" target="_blank">
+      <i class="ti ti-brand-github"></i> GitHub
+    </a>
+    <a href="dashboard.html">Dashboard</a>
+  </div>
+</footer>
 
-    // anomaly cards
-    const list = document.getElementById('anomalies-list');
-    list.innerHTML = anomalies.map(a => {
-      const severity = parseFloat(a.severity_score);
-      const badge = severity >= 0.8 
-        ? '<span class="badge badge-high">High Severity</span>'
-        : '<span class="badge badge-medium">Medium Severity</span>';
-
-      return `
-        <div class="anomaly-card">
-          <div class="anomaly-header">
-            <div class="anomaly-service">${a.service}</div>
-            ${badge}
-          </div>
-          <div class="anomaly-grid">
-            <div class="metric">
-              <div class="metric-label">Actual Spend</div>
-              <div class="metric-value red">$${parseFloat(a.actual_spend).toFixed(2)}</div>
-            </div>
-            <div class="metric">
-              <div class="metric-label">Expected Spend</div>
-              <div class="metric-value green">$${parseFloat(a.expected_spend).toFixed(2)}</div>
-            </div>
-            <div class="metric">
-              <div class="metric-label">Extra Cost</div>
-              <div class="metric-value red">$${parseFloat(a.total_impact).toFixed(2)}</div>
-            </div>
-          </div>
-          <div class="date-range">📅 ${a.start_date} → ${a.end_date}</div>
-          <br/>
-          <div class="ai-section">
-            <div class="ai-label">⚡ AI EXPLANATION</div>
-            <div class="ai-text">${a.explanation || 'No explanation stored yet.'}</div>
-          </div>
-        </div>
-      `;
-    }).join('');
-  }
-
-  loadDashboard();
-</script>
 </body>
 </html>

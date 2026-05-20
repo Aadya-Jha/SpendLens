@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SpendLens Dashboard</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #fff; color: #111; }
+
+    header {
+      padding: 1rem 2rem;
+      border-bottom: 1px solid #f0f0f0;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .header-left { display: flex; align-items: center; gap: 8px; }
+    .header-left h1 { font-size: 16px; font-weight: 500; color: #111; }
+    .header-left span { font-size: 13px; color: #aaa; }
+    .dot { width: 7px; height: 7px; background: #22c55e; border-radius: 50%; animation: pulse 2s infinite; }
+    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+    .back-link { font-size: 13px; color: #aaa; text-decoration: none; display: flex; align-items: center; gap: 4px; }
+    .back-link:hover { color: #111; }
+
+    .container { max-width: 1000px; margin: 0 auto; padding: 2rem; }
+
+    .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 2rem; }
+    .stat-card {
+      background: #f8f8f8;
+      border-radius: 8px;
+      padding: 1.25rem;
+    }
+    .stat-card .label { font-size: 11px; color: #aaa; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 8px; }
+    .stat-card .value { font-size: 28px; font-weight: 500; color: #111; }
+    .stat-card .sub { font-size: 12px; color: #aaa; margin-top: 4px; }
+
+    .section-label { font-size: 12px; font-weight: 500; color: #aaa; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 1rem; }
+
+    .chart-card {
+      border: 1px solid #ebebeb;
+      border-radius: 10px;
+      padding: 1.5rem;
+      margin-bottom: 2rem;
+    }
+
+    .anomaly-card {
+      border: 1px solid #ebebeb;
+      border-radius: 10px;
+      padding: 1.5rem;
+      margin-bottom: 12px;
+    }
+    .anomaly-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem; }
+    .anomaly-service { font-size: 16px; font-weight: 500; color: #111; }
+
+    .badge { padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 500; }
+    .badge-high { background: #fef2f2; color: #dc2626; border: 1px solid #fecaca; }
+    .badge-medium { background: #fff7ed; color: #ea580c; border: 1px solid #fed7aa; }
+
+    .anomaly-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 1rem; }
+    .metric-label { font-size: 11px; color: #aaa; margin-bottom: 4px; }
+    .metric-value { font-size: 18px; font-weight: 500; color: #111; }
+    .metric-value.red { color: #dc2626; }
+    .metric-value.green { color: #16a34a; }
+
+    .date-range { font-size: 12px; color: #aaa; margin-bottom: 1rem; display: flex; align-items: center; gap: 4px; }
+
+    .ai-section {
+      background: #f8f8f8;
+      border-radius: 8px;
+      padding: 1rem 1.25rem;
+      border-left: 3px solid #111;
+    }
+    .ai-label { font-size: 11px; font-weight: 500; color: #111; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.06em; }
+    .ai-text { font-size: 13px; color: #555; line-height: 1.7; white-space: pre-wrap; }
+
+    .loading { text-align: center; padding: 4rem; color: #aaa; font-size: 14px; }
+
+    .error { text-align: center; padding: 4rem; color: #dc2626; font-size: 14px; }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="header-left">
+    <i class="ti ti-zoom-money"></i>
+    <h1>SpendLens</h1>
+    <span>AWS Cost Anomaly Monitor</span>
+  </div>
+  <a class="back-link" href="index.html">
+    <i class="ti ti-arrow-left" style="font-size:14px"></i>
+    Back
+  </a>
+</header>
+
+<div class="container">
+  <div class="stats">
+    <div class="stat-card">
+      <div class="label">Total Anomalies</div>
+      <div class="value" id="total-count">—</div>
+      <div class="sub">detected this month</div>
+    </div>
+    <div class="stat-card">
+      <div class="label">Total Extra Spend</div>
+      <div class="value" id="total-impact">—</div>
+      <div class="sub">above expected</div>
+    </div>
+    <div class="stat-card">
+      <div class="label">Highest Severity</div>
+      <div class="value" id="max-severity">—</div>
+      <div class="sub">out of 1.0</div>
+    </div>
+  </div>
+
+  <div class="chart-card">
+    <div class="section-label">Cost impact by service</div>
+    <canvas id="costChart" height="80"></canvas>
+  </div>
+
+  <div class="section-label">Anomaly details</div>
+  <div id="anomalies-list">
+    <div class="loading">Loading anomalies...</div>
+  </div>
+</div>
+
+<script>
+  const API = 'http://localhost:5000';
+
+  async function loadDashboard() {
+    try {
+      const res = await fetch(`${API}/anomalies`);
+      const data = await res.json();
+      const anomalies = data.anomalies;
+
+      document.getElementById('total-count').textContent = anomalies.length;
+      const totalImpact = anomalies.reduce((sum, a) => sum + parseFloat(a.total_impact), 0);
+      document.getElementById('total-impact').textContent = `$${totalImpact.toFixed(2)}`;
+      const maxSeverity = Math.max(...anomalies.map(a => parseFloat(a.severity_score)));
+      document.getElementById('max-severity').textContent = maxSeverity.toFixed(2);
+
+      const ctx = document.getElementById('costChart').getContext('2d');
+      new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: anomalies.map(a => a.service),
+          datasets: [{
+            label: 'Extra Spend ($)',
+            data: anomalies.map(a => parseFloat(a.total_impact)),
+            backgroundColor: '#111',
+            borderRadius: 4
+          }, {
+            label: 'Expected Spend ($)',
+            data: anomalies.map(a => parseFloat(a.expected_spend)),
+            backgroundColor: '#f0f0f0',
+            borderRadius: 4
+          }]
+        },
+        options: {
+          plugins: { legend: { labels: { color: '#aaa', font: { size: 12 } } } },
+          scales: {
+            x: { ticks: { color: '#aaa' }, grid: { color: '#f5f5f5' } },
+            y: { ticks: { color: '#aaa' }, grid: { color: '#f5f5f5' } }
+          }
+        }
+      });
+
+      const list = document.getElementById('anomalies-list');
+      list.innerHTML = anomalies.map(a => {
+        const severity = parseFloat(a.severity_score);
+        const badge = severity >= 0.8
+          ? '<span class="badge badge-high">High severity</span>'
+          : '<span class="badge badge-medium">Medium severity</span>';
+
+        return `
+          <div class="anomaly-card">
+            <div class="anomaly-header">
+              <div class="anomaly-service">${a.service}</div>
+              ${badge}
+            </div>
+            <div class="anomaly-grid">
+              <div>
+                <div class="metric-label">Actual spend</div>
+                <div class="metric-value red">$${parseFloat(a.actual_spend).toFixed(2)}</div>
+              </div>
+              <div>
+                <div class="metric-label">Expected spend</div>
+                <div class="metric-value green">$${parseFloat(a.expected_spend).toFixed(2)}</div>
+              </div>
+              <div>
+                <div class="metric-label">Extra cost</div>
+                <div class="metric-value red">$${parseFloat(a.total_impact).toFixed(2)}</div>
+              </div>
+            </div>
+            <div class="date-range">
+              <i class="ti ti-calendar" style="font-size:13px"></i>
+              ${a.start_date} → ${a.end_date}
+            </div>
+            <div class="ai-section">
+              <div class="ai-label">AI explanation</div>
+              <div class="ai-text">${a.explanation || 'No explanation stored yet.'}</div>
+            </div>
+          </div>
+        `;
+      }).join('');
+
+    } catch (e) {
+      document.getElementById('anomalies-list').innerHTML = '<div class="error">Could not connect to API. Make sure Flask is running on port 5000.</div>';
+    }
+  }
+
+  loadDashboard();
+</script>
+</body>
+</html>
