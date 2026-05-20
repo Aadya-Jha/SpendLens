@@ -7,9 +7,19 @@ AWS's native alerts tell you *that* something spiked. SpendLens tells you *why* 
 
 ---
 
-## Demo
+## Demo Video
 
-![SpendLens Dashboard](docs/dashboard.png)
+[Watch Full Demo](https://www.loom.com/share/f100384bcd414e8ba0dfe8b0b5b59ed0)
+
+---
+
+## Dashboard Preview
+
+### Overview Dashboard
+![SpendLens Dashboard Overview](docs/dashboard1.jpeg)
+
+### AI Explanation View
+![SpendLens AI Analysis](docs/dashboard2.jpeg)
 
 ---
 
