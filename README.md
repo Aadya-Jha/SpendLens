@@ -1,13 +1,13 @@
 # SpendLens 
 > AI-Powered AWS Cost Anomaly Explainer
 
-SpendLens monitors your AWS account for cost anomalies daily, generates plain-English explanations using AI, and emails you actionable fix recommendations — automatically.
+SpendLens monitors your AWS account for cost anomalies daily, generates plain-English explanations using AI, and automatically emails you root cause analysis and remediation recommendations.
 
 AWS's native alerts tell you *that* something spiked. SpendLens tells you *why* and *what to do about it.*
 
 ---
 
-## Demo Video
+## Demo
 
 [Watch Full Demo](https://www.loom.com/share/f100384bcd414e8ba0dfe8b0b5b59ed0)
 
@@ -15,11 +15,13 @@ AWS's native alerts tell you *that* something spiked. SpendLens tells you *why* 
 
 ## Dashboard Preview
 
-### Overview Dashboard
+### Overview
 ![SpendLens Dashboard Overview](docs/dashboard1.jpeg)
 
-### AI Explanation View
+### AI Explanation
 ![SpendLens AI Analysis](docs/dashboard2.jpeg)
+
+> The dashboard runs locally against your own AWS account — each user sees their own real anomaly data after deploying SpendLens.
 
 ---
 
@@ -28,13 +30,13 @@ AWS's native alerts tell you *that* something spiked. SpendLens tells you *why* 
 - **Daily automated monitoring** — runs every day at 8AM UTC via EventBridge
 - **AI-powered explanations** — plain English root cause analysis with fix recommendations
 - **Smart deduplication** — never alerts you about the same anomaly twice
-- **Web dashboard** — visualize anomaly history and cost impact by service
+- **Local dashboard** — run locally to visualize your anomaly history, cost impact by service, and severity metrics
 - **Infrastructure as code** — entire AWS stack defined in SAM template, deployed in one command
-- **Fully serverless** — no servers, no maintenance, costs ~₹25/month to run
+- **Fully serverless** — no servers, no maintenance
 
 ---
 
-## Architecture
+## How It Works
 
 EventBridge (cron: 8AM UTC)
 ↓
@@ -46,7 +48,7 @@ Groq AI (Llama 3.3 70B)
 ↓
 SNS Email Alert
 ↓
-Flask API ──→ Dashboard
+Flask API ──→ Local Dashboard
 
 ---
 
@@ -60,7 +62,7 @@ Flask API ──→ Dashboard
 | Storage | AWS DynamoDB | Serverless NoSQL, fast key lookups |
 | AI | Groq API (Llama 3.3 70B) | Fast inference, free tier available |
 | Alerts | AWS SNS | Managed email delivery |
-| API | Flask | REST endpoints for dashboard |
+| API | Flask | REST endpoints for local dashboard |
 | IaC | AWS SAM | Infrastructure as code, reproducible deploys |
 
 ---
@@ -120,7 +122,7 @@ During guided deploy you'll be asked for:
 - **Stack name** — enter `spendlens`
 - **AWS Region** — enter `us-east-1`
 - **GroqApiKey** — paste your Groq API key
-- **AlertEmail** — your email address for alerts
+- **AlertEmail** — your email address for cost anomaly alerts
 - Accept all other defaults
 
 SAM will automatically create:
@@ -133,32 +135,31 @@ SAM will automatically create:
 
 ### Step 5 — Run the dashboard locally
 
+The dashboard reads from your own DynamoDB table and shows your real anomaly data.
+
 Start the Flask API:
 ```bash
 cd api
 python app.py
 ```
 
-Open `frontend/index.html` in your browser.
+Open `frontend/index.html` in your browser. The dashboard will display anomalies detected in your AWS account along with AI-generated explanations and cost charts.
+
+> Note: New AWS accounts need approximately 2 weeks of billing history before Cost Explorer can detect anomalies. SpendLens falls back to mock data automatically during this period so you can verify the pipeline is working.
 
 ---
 
-## How It Works
+## What You Get
 
-### 1. Anomaly Detection
-Every day at 8AM UTC, EventBridge triggers the Lambda function. It calls the AWS Cost Explorer API to fetch cost anomalies from the past 30 days where extra spend exceeds $1.
+**1. Daily email alerts**
+The primary output of SpendLens. Every time a new cost anomaly is detected in your account, you receive an email with:
+- Which service spiked
+- Expected vs actual spend
+- AI-generated root cause analysis
+- 3 specific remediation recommendations
 
-### 2. Deduplication
-Before processing, SpendLens checks DynamoDB using the anomaly ID. If already processed, it skips — so you never get the same alert twice.
-
-### 3. AI Explanation
-New anomalies are sent to Groq API with a structured prompt. The AI returns:
-- A one-line plain English summary
-- Most likely root cause
-- 3 specific fix recommendations
-
-### 4. Alert + Storage
-The explanation is emailed via SNS and stored in DynamoDB for the dashboard to display.
+**2. Local dashboard**
+Run `python api/app.py` and open `frontend/index.html` to see your full anomaly history, cost impact charts, and AI explanations in a visual interface.
 
 ---
 
@@ -176,7 +177,8 @@ spendlens/
 ├── api/
 │   └── app.py                  # Flask REST API
 ├── frontend/
-│   └── index.html              # web dashboard
+│   ├── index.html              # landing page
+│   └── dashboard.html          # local dashboard
 ├── template.yaml               # AWS SAM infrastructure definition
 ├── samconfig.toml              # SAM deployment configuration
 ├── setup.py                    # alternative manual deployment script
@@ -217,20 +219,6 @@ The Flask API runs locally on port 5000.
   ]
 }
 ```
-
----
-
-## Cost to Run
-
-| Service | Monthly Cost |
-|---------|-------------|
-| AWS Lambda | Free tier (1M requests/month) |
-| AWS DynamoDB | Free tier (25GB storage) |
-| AWS EventBridge | Free (unlimited scheduled rules) |
-| AWS SNS | Free tier (1000 emails/month) |
-| AWS Cost Explorer | ~$0.30/month |
-| Groq API | Free tier |
-| **Total** | **~₹25/month** |
 
 ---
 
