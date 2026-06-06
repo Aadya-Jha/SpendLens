@@ -18,6 +18,8 @@ def lambda_handler(event, context):
         anomalies = get_mock_anomaly()
     
     parsed = [parse_anomaly(a) for a in anomalies]
+    services = set([a['service'] for a in parsed])
+    print(f"Scanned {len(services)} AWS services for anomalies")
     print(f"Processing {len(parsed)} anomalies")
     
     processed = 0
